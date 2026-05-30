@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Demokratielabor</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #0d0d0d;
+  --paper: #f2f0eb;
+  --card: #ffffff;
+  --accent: #c8f03a;
+  --muted: #888;
+  --border: rgba(0,0,0,0.09);
+  --red: #f03a3a;
+  --green: #1db87a;
+  --green-light: #d4f5e6;
+  --amber: #f0a03a;
+  --amber-light: #fef3dc;
+  --radius: 14px;
+  --font-head: 'Syne', sans-serif;
+  --font-body: 'Instrument Sans', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-body); background: var(--paper); color: var(--ink); min-height: 100vh; }
+
+nav {
+  background: var(--ink); padding: 0 20px;
+  display: flex; align-items: center; gap: 6px;
+  height: 52px; position: sticky; top: 0; z-index: 100;
+}
+.nav-logo {
+  font-family: var(--font-head); font-size: 13px; font-weight: 800;
+  color: var(--accent); letter-spacing: .04em; margin-right: 10px; white-space: nowrap;
+}
+.nav-btn {
+  font-family: var(--font-body); font-size: 12px; font-weight: 500;
+  padding: 5px 13px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.15);
+  background: transparent; color: rgba(255,255,255,0.55); cursor: pointer;
+  transition: all .15s; display: flex; align-items: center; gap: 5px; white-space: nowrap;
+}
+.nav-btn:hover { background: rgba(255,255,255,0.08); color: #fff; }
+.nav-btn.active { background: var(--accent); color: var(--ink); border-color: var(--accent); font-weight: 600; }
+.nav-badge {
+  background: var(--red); color: #fff; border-radius: 20px; font-size: 10px;
+  font-weight: 700; min-width: 16px; height: 16px; display: none;
+  align-items: center; justify-content: center; padding: 0 4px;
+}
+.nav-right { margin-left: auto; font-size: 11px; color: rgba(255,255,255,0.3); font-family: var(--font-head); }
+
+.view { display: none; }
+.view.active { display: block; }
+.main { padding: 28px 20px; max-width: 660px; margin: 0 auto; }
+
+.topic-chip {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--ink); color: var(--accent);
+  border-radius: 10px; padding: 10px 16px; margin-bottom: 24px;
+}
+.topic-chip .pulse {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--accent);
+  flex-shrink: 0; animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+.topic-chip span { font-size: 13px; font-weight: 600; font-family: var(--font-head); }
+
+.card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); padding: 24px; margin-bottom: 14px; }
+.card h2 { font-family: var(--font-head); font-size: 22px; font-weight: 800; margin-bottom: 6px; letter-spacing: -.3px; }
+.card p { font-size: 14px; color: var(--muted); margin-bottom: 18px; line-height: 1.55; }
+
+textarea {
+  width: 100%; padding: 13px 15px; font-size: 16px; font-family: var(--font-body);
+  border: 1.5px solid var(--border); border-radius: 10px; background: var(--paper);
+  color: var(--ink); resize: none; line-height: 1.6; transition: border-color .15s;
+}
+textarea:focus { outline: none; border-color: var(--ink); background: #fff; }
+.char-row { display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; color: var(--muted); }
+.warn { color: var(--amber); }
+
+.btn-primary {
+  margin-top: 16px; width: 100%; padding: 14px; background: var(--ink); color: var(--accent);
+  border: none; border-radius: 10px; font-size: 15px; font-weight: 700;
+  font-family: var(--font-head); cursor: pointer; letter-spacing: .02em; transition: background .15s, transform .1s;
+}
+.btn-primary:hover { background: #222; }
+.btn-primary:active { transform: scale(.98); }
+.btn-primary:disabled { background: #ccc; color: #999; cursor: not-allowed; transform: none; }
+
+.notice { display: none; margin-top: 14px; border-radius: 10px; padding: 12px 16px; font-size: 13px; line-height: 1.5; }
+.notice.amber { background: var(--amber-light); color: #7a4e00; }
+
+.pin-gate { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); padding: 36px 24px; text-align: center; }
+.pin-gate h3 { font-family: var(--font-head); font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+.pin-gate p { font-size: 13px; color: var(--muted); margin-bottom: 22px; }
+.pin-input {
+  font-family: var(--font-head); font-size: 28px; font-weight: 700; letter-spacing: 10px;
+  text-align: center; width: 170px; padding: 10px; border: 1.5px solid var(--border);
+  border-radius: 10px; background: var(--paper); color: var(--ink);
+}
+.pin-input:focus { outline: none; border-color: var(--ink); }
+.pin-btn {
+  display: block; margin: 14px auto 0; padding: 10px 28px; background: var(--ink);
+  color: var(--accent); border: none; border-radius: 10px; font-size: 14px;
+  font-weight: 700; font-family: var(--font-head); cursor: pointer;
+}
+.pin-error { font-size: 12px; color: var(--red); margin-top: 8px; display: none; }
+
+.section-label {
+  font-family: var(--font-head); font-size: 10px; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 22px 0 10px;
+}
+.stats-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 20px; }
+.stat { background: var(--card); border-radius: 12px; border: 1px solid var(--border); padding: 14px; text-align: center; }
+.stat .val { font-family: var(--font-head); font-size: 28px; font-weight: 800; }
+.stat .lbl { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+.queue-empty { background: var(--card); border: 1.5px dashed var(--border); border-radius: 12px; padding: 20px; text-align: center; font-size: 13px; color: var(--muted); }
+.queue-card { background: var(--card); border: 1.5px solid var(--amber); border-radius: 12px; padding: 14px 16px; margin-bottom: 8px; }
+.queue-text { font-size: 15px; line-height: 1.5; margin-bottom: 6px; }
+.queue-meta { font-size: 11px; color: var(--muted); margin-bottom: 12px; }
+.action-row { display: flex; gap: 8px; }
+.approve-btn { flex:1; padding:8px; background:var(--green-light); border:1px solid var(--green); border-radius:8px; color:#0a5c38; font-size:13px; font-weight:600; font-family:var(--font-body); cursor:pointer; }
+.approve-btn:hover { background:#b2eed4; }
+.reject-btn { flex:1; padding:8px; background:#fde8e8; border:1px solid #f09595; border-radius:8px; color:#791f1f; font-size:13px; font-weight:600; font-family:var(--font-body); cursor:pointer; }
+.reject-btn:hover { background:#f7c1c1; }
+
+.entry-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:13px 15px; display:flex; gap:10px; align-items:flex-start; margin-bottom:8px; }
+.entry-card.winner { border:2px solid var(--accent); background:#f9fde8; }
+.winner-badge { font-family:var(--font-head); font-size:9px; font-weight:800; background:var(--ink); color:var(--accent); padding:2px 8px; border-radius:20px; margin-bottom:5px; display:inline-block; letter-spacing:.06em; }
+.entry-text { flex:1; font-size:14px; line-height:1.5; }
+.entry-meta { font-size:11px; color:var(--muted); margin-top:4px; }
+.vote-col { display:flex; flex-direction:column; align-items:center; gap:3px; min-width:40px; }
+.vote-btn { background:none; border:1px solid var(--border); border-radius:8px; padding:5px 9px; cursor:pointer; font-size:13px; color:var(--muted); }
+.vote-btn:hover { background:#f0f9d0; border-color:#9ab820; }
+.vote-count { font-family:var(--font-head); font-size:13px; font-weight:800; }
+.admin-actions { display:flex; gap:8px; margin-bottom:12px; }
+.small-btn { font-size:12px; padding:6px 12px; border-radius:8px; border:1px solid var(--border); background:var(--card); color:var(--muted); cursor:pointer; font-family:var(--font-body); }
+.small-btn.danger { border-color:#f09595; color:#791f1f; }
+
+.vote-card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:18px; margin-bottom:10px; transition:all .15s; }
+.vote-card.voted-card { border-color:var(--green); background:var(--green-light); }
+.vote-card.voted-card .vote-card-text { color:#0a5c38; }
+.vote-card-text { font-size:15px; line-height:1.55; margin-bottom:12px; }
+.vote-card-footer { display:flex; align-items:center; justify-content:space-between; }
+.vote-count-display { font-family:var(--font-head); font-size:13px; font-weight:700; color:var(--muted); }
+.cast-btn { padding:7px 18px; background:var(--ink); color:var(--accent); border:none; border-radius:8px; font-size:13px; font-weight:700; font-family:var(--font-head); cursor:pointer; }
+.cast-btn:hover { background:#333; }
+.voted-label { font-family:var(--font-head); font-size:12px; font-weight:700; color:var(--green); letter-spacing:.04em; }
+.vote-empty { text-align:center; padding:3rem 0; color:var(--muted); font-size:14px; }
+
+.live-wrap { background:#0a0a0f; border-radius:var(--radius); padding:28px 24px; min-height:520px; }
+.live-eyebrow { font-family:var(--font-head); font-size:10px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:rgba(200,240,58,.5); margin-bottom:6px; }
+.live-title { font-family:var(--font-head); font-size:26px; font-weight:800; color:#fff; letter-spacing:-.5px; margin-bottom:4px; }
+.live-topic { font-size:14px; color:rgba(200,240,58,.7); margin-bottom:28px; }
+.live-card { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07); border-radius:12px; padding:16px 18px; display:flex; align-items:flex-start; gap:14px; margin-bottom:10px; }
+.live-card.top { background:rgba(200,240,58,.08); border-color:rgba(200,240,58,.4); }
+.live-crown { font-family:var(--font-head); font-size:9px; font-weight:800; color:var(--accent); background:rgba(200,240,58,.15); padding:2px 9px; border-radius:20px; display:inline-block; letter-spacing:.08em; margin-bottom:5px; }
+.live-text { flex:1; font-size:16px; color:#fff; line-height:1.55; }
+.live-votes { font-family:var(--font-head); font-size:18px; font-weight:800; color:rgba(255,255,255,.25); min-width:44px; text-align:right; padding-top:2px; }
+.live-card.top .live-votes { color:var(--accent); }
+.live-empty { color:rgba(255,255,255,.2); text-align:center; padding:4rem 0; font-size:14px; }
+.live-footer { display:flex; justify-content:space-between; align-items:center; margin-top:24px; font-size:11px; color:rgba(255,255,255,.2); font-family:var(--font-head); letter-spacing:.06em; }
+.live-ticker { display:flex; align-items:center; gap:6px; }
+.live-dot { width:6px; height:6px; border-radius:50%; background:var(--accent); animation:pulse 2s infinite; }
+.refresh-bar { height:3px; background:rgba(200,240,58,.15); border-radius:2px; margin-top:16px; overflow:hidden; }
+.refresh-progress { height:100%; background:var(--accent); width:100%; transform-origin:left; animation:shrink 20s linear infinite; }
+@keyframes shrink { from{transform:scaleX(1);} to{transform:scaleX(0);} }
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-logo">DEMO·LAB</span>
+  <button class="nav-btn active" onclick="setView('input')" id="btn-input">✏️ Einreichen</button>
+  <button class="nav-btn" onclick="setView('vote')" id="btn-vote">🗳 Bewerten</button>
+  <button class="nav-btn" onclick="setView('admin')" id="btn-admin">
+    🛡 Admin
+    <span class="nav-badge" id="pending-badge">0</span>
+  </button>
+  <button class="nav-btn" onclick="setView('live')" id="btn-live">📽 Live</button>
+  <span class="nav-right" id="live-count">0 live</span>
+</nav>
+
+<div class="main">
+
+  <!-- EINREICHEN -->
+  <div id="view-input" class="view active">
+    <div class="topic-chip"><div class="pulse"></div><span id="display-topic">Musik &amp; Lautstärke im öffentlichen Raum</span></div>
+    <div class="card">
+      <h2>Schreib dein Gesetz.</h2>
+      <p>Ein Satz, max. 140 Zeichen. Was soll gelten? Dein Vorschlag erscheint auf dem Live-Screen — nach Freigabe.</p>
+      <textarea id="law-text" rows="3" maxlength="140" placeholder="Jede Person hat das Recht auf…" oninput="updateChar()"></textarea>
+      <div class="char-row"><span id="char-display">0 / 140</span><span>anonym · wird geprüft</span></div>
+      <button class="btn-primary" id="submit-btn" onclick="submitLaw()" disabled>Gesetz einreichen →</button>
+    </div>
+    <div class="notice amber" id="pending-notice">⏳ Dein Gesetz wartet auf Freigabe — gleich erscheint es auf dem Screen!</div>
+  </div>
+
+  <!-- BEWERTEN -->
+  <div id="view-vote" class="view">
+    <div class="topic-chip"><div class="pulse"></div><span id="vote-topic">Musik &amp; Lautstärke im öffentlichen Raum</span></div>
+    <div class="card" style="padding:16px 20px;">
+      <h2>Abstimmen</h2>
+      <p>Du kannst für jedes Gesetz einmal abstimmen.</p>
+    </div>
+    <div id="vote-list"><div class="vote-empty">Noch keine freigegebenen Gesetze.</div></div>
+  </div>
+
+  <!-- ADMIN -->
+  <div id="view-admin" class="view">
+    <div id="pin-gate-wrap">
+      <div class="pin-gate">
+        <h3>🔒 Admin</h3>
+        <p>PIN eingeben</p>
+        <input type="password" class="pin-input" id="pin-input" maxlength="4" placeholder="····" onkeyup="if(event.key==='Enter')checkPin()" />
+        <div class="pin-error" id="pin-error">Falsche PIN!</div>
+        <button class="pin-btn" onclick="checkPin()">Einloggen</button>
+      </div>
+    </div>
+    <div id="admin-content" style="display:none;">
+      <div class="stats-row">
+        <div class="stat"><div class="val" id="stat-pending">0</div><div class="lbl">Wartend</div></div>
+        <div class="stat"><div class="val" id="stat-approved">0</div><div class="lbl">Live</div></div>
+        <div class="stat"><div class="val" id="stat-votes">0</div><div class="lbl">Stimmen</div></div>
+      </div>
+      <div class="section-label">Warteschlange</div>
+      <div id="queue-list"></div>
+      <div class="section-label">Freigegebene Gesetze</div>
+      <div class="admin-actions">
+        <button class="small-btn" onclick="renderAdmin()">↻ Aktualisieren</button>
+        <button class="small-btn danger" onclick="clearAll()">✕ Alle löschen</button>
+      </div>
+      <div id="approved-list"></div>
+    </div>
+  </div>
+
+  <!-- LIVE -->
+  <div id="view-live" class="view">
+    <div class="live-wrap">
+      <div class="live-eyebrow">Demokratielabor · Democracy Rocks</div>
+      <div class="live-title">Dein Gesetz.</div>
+      <div class="live-topic" id="live-topic">Musik &amp; Lautstärke im öffentlichen Raum</div>
+      <div id="live-list"><div class="live-empty">Warte auf freigegebene Gesetze…</div></div>
+      <div class="refresh-bar"><div class="refresh-progress" id="refresh-bar"></div></div>
+      <div class="live-footer">
+        <div class="live-ticker"><div class="live-dot"></div><span>LIVE · aktualisiert alle 20 Sek.</span></div>
+        <span id="live-footer-count"></span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Supabase ──
+const SUPABASE_URL = 'https://rtopqfhsmklcdcdzhpcx.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_nBVtp5Ax0IuJB9EQZ0_hqw__QYJl-Z1';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const ADMIN_PIN = '1234';
+const TOPIC = 'Musik & Lautstärke im öffentlichen Raum';
+
+let adminUnlocked = false;
+let votedIds = JSON.parse(localStorage.getItem('demlab_voted') || '[]');
+let liveTimer = null;
+
+// ── Char counter ──
+function updateChar() {
+  const n = document.getElementById('law-text').value.length;
+  const el = document.getElementById('char-display');
+  el.textContent = n + ' / 140';
+  el.className = n > 120 ? 'warn' : '';
+  document.getElementById('submit-btn').disabled = n < 10;
+}
+
+// ── Submit ──
+async function submitLaw() {
+  const text = document.getElementById('law-text').value.trim();
+  if (text.length < 10) return;
+  const ts = new Date().toLocaleTimeString('de', {hour:'2-digit', minute:'2-digit'});
+  await sb.from('laws').insert([{ text, votes: 0, status: 'pending', ts }]);
+  document.getElementById('law-text').value = '';
+  updateChar();
+  const n = document.getElementById('pending-notice');
+  n.style.display = 'block';
+  setTimeout(() => n.style.display = 'none', 4500);
+}
+
+// ── PIN ──
+function checkPin() {
+  if (document.getElementById('pin-input').value === ADMIN_PIN) {
+    adminUnlocked = true;
+    document.getElementById('pin-gate-wrap').style.display = 'none';
+    document.getElementById('admin-content').style.display = 'block';
+    renderAdmin();
+  } else {
+    document.getElementById('pin-error').style.display = 'block';
+    document.getElementById('pin-input').value = '';
+  }
+}
+
+// ── Admin ──
+async function renderAdmin() {
+  if (!adminUnlocked) return;
+  const { data: all } = await sb.from('laws').select('*').order('created_at', {ascending: true});
+  const laws = all || [];
+  const pending  = laws.filter(l => l.status === 'pending');
+  const approved = laws.filter(l => l.status === 'approved').sort((a,b) => b.votes - a.votes);
+  const totalVotes = approved.reduce((s,l) => s + l.votes, 0);
+
+  document.getElementById('stat-pending').textContent  = pending.length;
+  document.getElementById('stat-approved').textContent = approved.length;
+  document.getElementById('stat-votes').textContent    = totalVotes;
+  updateNavCount(approved.length);
+  updateBadge(pending.length);
+
+  const qEl = document.getElementById('queue-list');
+  qEl.innerHTML = pending.length ? pending.map(l => `
+    <div class="queue-card">
+      <div class="queue-text">${esc(l.text)}</div>
+      <div class="queue-meta">Eingereicht ${l.ts||''}</div>
+      <div class="action-row">
+        <button class="approve-btn" onclick="approve(${l.id})">✓ Freigeben</button>
+        <button class="reject-btn"  onclick="reject(${l.id})">✕ Ablehnen</button>
+      </div>
+    </div>`).join('') : '<div class="queue-empty">Keine neuen Einträge.</div>';
+
+  const aEl = document.getElementById('approved-list');
+  aEl.innerHTML = approved.length ? approved.map((l,i) => `
+    <div class="entry-card ${i===0 && l.votes>0 ? 'winner' : ''}">
+      <div style="flex:1">
+        ${i===0 && l.votes>0 ? '<div class="winner-badge">FÜHREND</div>' : ''}
+        <div class="entry-text">${esc(l.text)}</div>
+        <div class="entry-meta">${l.ts||''} · ${l.votes} Stimme${l.votes!==1?'n':''}</div>
+      </div>
+      <div class="vote-col">
+        <button class="vote-btn" onclick="adminVote(${l.id}, ${l.votes})">▲</button>
+        <span class="vote-count">${l.votes}</span>
+      </div>
+    </div>`).join('') : '<div class="queue-empty">Noch nichts freigegeben.</div>';
+}
+
+async function approve(id) {
+  await sb.from('laws').update({status: 'approved'}).eq('id', id);
+  renderAdmin();
+}
+async function reject(id) {
+  await sb.from('laws').delete().eq('id', id);
+  renderAdmin();
+}
+async function adminVote(id, current) {
+  await sb.from('laws').update({votes: current + 1}).eq('id', id);
+  renderAdmin();
+}
+async function clearAll() {
+  if (!confirm('Wirklich alle Einträge löschen?')) return;
+  await sb.from('laws').delete().neq('id', 0);
+  renderAdmin(); renderLive(); renderVote();
+}
+
+// ── Vote view ──
+async function renderVote() {
+  const { data } = await sb.from('laws').select('*').eq('status','approved').order('created_at', {ascending: true});
+  const approved = data || [];
+  const el = document.getElementById('vote-list');
+  if (!approved.length) { el.innerHTML = '<div class="vote-empty">Noch keine freigegebenen Gesetze.</div>'; return; }
+  el.innerHTML = approved.map(l => {
+    const hasVoted = votedIds.includes(l.id);
+    return `<div class="vote-card ${hasVoted ? 'voted-card' : ''}">
+      <div class="vote-card-text">${esc(l.text)}</div>
+      <div class="vote-card-footer">
+        <span class="vote-count-display">${l.votes} Stimme${l.votes!==1?'n':''}</span>
+        ${hasVoted
+          ? '<span class="voted-label">✓ Abgestimmt</span>'
+          : `<button class="cast-btn" onclick="castVote(${l.id}, ${l.votes})">Stimme geben ▲</button>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function castVote(id, current) {
+  if (votedIds.includes(id)) return;
+  await sb.from('laws').update({votes: current + 1}).eq('id', id);
+  votedIds.push(id);
+  localStorage.setItem('demlab_voted', JSON.stringify(votedIds));
+  renderVote();
+  renderLive();
+}
+
+// ── Live view ──
+async function renderLive() {
+  const { data } = await sb.from('laws').select('*').eq('status','approved').order('votes', {ascending: false});
+  const approved = (data || []).slice(0, 8);
+  const el = document.getElementById('live-list');
+  const ft = document.getElementById('live-footer-count');
+  updateNavCount(approved.length);
+  if (!approved.length) {
+    el.innerHTML = '<div class="live-empty">Warte auf freigegebene Gesetze…</div>';
+    ft.textContent = ''; return;
+  }
+  el.innerHTML = approved.map((l,i) => `
+    <div class="live-card ${i===0 && l.votes>0 ? 'top' : ''}">
+      <div style="flex:1">
+        ${i===0 && l.votes>0 ? '<div class="live-crown">FÜHREND</div>' : ''}
+        <div class="live-text">${esc(l.text)}</div>
+      </div>
+      <div class="live-votes">${l.votes > 0 ? '▲ '+l.votes : ''}</div>
+    </div>`).join('');
+  ft.textContent = approved.length + ' Gesetz' + (approved.length!==1?'e':'') + ' freigeschaltet';
+}
+
+function startLiveRefresh() {
+  stopLiveRefresh();
+  renderLive();
+  resetBar();
+  liveTimer = setInterval(() => { renderLive(); resetBar(); }, 20000);
+}
+function stopLiveRefresh() { if (liveTimer) { clearInterval(liveTimer); liveTimer = null; } }
+function resetBar() {
+  const b = document.getElementById('refresh-bar');
+  b.style.animation = 'none'; b.offsetHeight;
+  b.style.animation = 'shrink 20s linear infinite';
+}
+
+// ── View switching ──
+function setView(v) {
+  ['input','vote','admin','live'].forEach(id => {
+    document.getElementById('view-'+id).classList.toggle('active', id===v);
+    document.getElementById('btn-'+id).classList.toggle('active', id===v);
+  });
+  if (v === 'admin' && adminUnlocked) renderAdmin();
+  if (v === 'vote')  renderVote();
+  if (v === 'live')  startLiveRefresh();
+  else stopLiveRefresh();
+}
+
+function updateNavCount(n) { document.getElementById('live-count').textContent = n + ' live'; }
+function updateBadge(n) {
+  const b = document.getElementById('pending-badge');
+  b.style.display = n > 0 ? 'inline-flex' : 'none';
+  b.textContent = n;
+}
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── URL routing ──
+const p = new URLSearchParams(window.location.search);
+if (p.has('admin')) setView('admin');
+else if (p.has('live')) setView('live');
+else if (p.has('vote')) setView('vote');
+</script>
+</body>
+</html>
